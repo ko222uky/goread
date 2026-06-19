@@ -1,161 +1,6 @@
-# goread
+# goread — Architecture
 
-A lightweight, keyboard-driven RSS/Atom newsreader for the terminal, built with Go and [Bubble Tea](https://github.com/charmbracelet/bubbletea).
-
-Feeds are fetched in parallel on startup. Read state and your feed list persist between sessions.
-
----
-
-## Installation
-
-```bash
-git clone <your-repo>
-cd goread
-go build ./...
-```
-
-Requires Go 1.21 or later.
-
----
-
-## Usage
-
-```bash
-./goread
-```
-
-On first launch the feed list will be empty. Press `a` to add your first RSS or Atom feed URL.
-
----
-
-## Keyboard Controls
-
-### Feed List
-
-| Key | Action |
-|-----|--------|
-| `↑` / `↓` | Navigate feeds |
-| `Enter` | Open feed and view its articles |
-| `a` | Add a new feed (enter URL, then `Enter`) |
-| `d` / `x` | Delete the selected feed |
-| `r` | Refresh all feeds |
-| `q` | Quit |
-
-### Article List
-
-| Key | Action |
-|-----|--------|
-| `↑` / `↓` | Navigate articles |
-| `Enter` | Read the selected article |
-| `o` | Open article in the system browser |
-| `r` | Refresh this feed |
-| `Esc` / `q` | Back to feed list |
-
-### Article View
-
-| Key | Action |
-|-----|--------|
-| `↑` / `↓` | Scroll line by line |
-| `PgUp` / `PgDn` | Scroll page by page |
-| `o` | Open article in the system browser |
-| `Esc` / `q` | Back to article list |
-
-### Add Feed
-
-| Key | Action |
-|-----|--------|
-| `Enter` | Confirm and fetch the feed |
-| `Esc` | Cancel |
-
----
-
-## How Non-Text Content Is Handled
-
-RSS and Atom feeds are XML documents but often contain non-text elements:
-
-| Content Type | How goread handles it |
-|---|---|
-| **HTML markup** | Stripped to plain text; block tags (`<p>`, `<br>`, `<div>`, etc.) become newlines |
-| **HTML entities** | Unescaped (`&amp;` → `&`, `&nbsp;` → space, etc.) |
-| **Images** | Silently skipped; press `o` to open the full article in your browser |
-| **Audio / Video** | Enclosures are ignored; open in browser to access media |
-| **Atom feeds** | Parsed identically to RSS via [gofeed](https://github.com/mmcdole/gofeed) |
-
----
-
-## Data Storage
-
-Feed URLs, cached titles, and per-article read state are stored as JSON at:
-
-| OS | Path |
-|---|---|
-| Windows | `%APPDATA%\goread\data.json` |
-| macOS | `~/Library/Application Support/goread/data.json` |
-| Linux | `~/.config/goread/data.json` |
-
----
-
-## Program Logic
-
-```mermaid
-flowchart TD
-    A([Launch]) --> B[Load data.json\nfeed URLs + read state]
-    B --> C{Feeds saved?}
-    C -- No --> D[Feed List\nempty]
-    C -- Yes --> E[Fetch all feeds\nin parallel]
-    E --> F[Feed List\nwith unread counts]
-    D --> F
-
-    F --> G{Keypress}
-
-    G -- a --> H[Add Feed view\ntext input]
-    H -- Enter --> I[Append URL\nsave data.json]
-    I --> J[Fetch new feed]
-    J --> F
-    H -- Esc --> F
-
-    G -- d / x --> K[Remove feed\nfrom list + data.json]
-    K --> F
-
-    G -- r --> E
-
-    G -- Enter --> L[Article List\nfor selected feed]
-    L --> M{Keypress}
-
-    M -- r --> N[Re-fetch\nthis feed]
-    N --> L
-
-    M -- o --> O[Open URL\nin system browser]
-    O --> L
-
-    M -- Enter --> P[Article View\nstripped + wrapped text]
-    P --> Q[Mark article read\nsave data.json]
-    Q --> R{Keypress}
-
-    R -- o --> S[Open URL\nin system browser]
-    S --> P
-
-    R -- Esc / q --> L
-    M -- Esc / q --> F
-    G -- q --> T([Quit])
-```
-
----
-
-## Dependencies
-
-| Package | Purpose |
-|---|---|
-| [charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea) | TUI framework (Elm-architecture event loop) |
-| [charmbracelet/bubbles](https://github.com/charmbracelet/bubbles) | List, viewport, and text input components |
-| [charmbracelet/lipgloss](https://github.com/charmbracelet/lipgloss) | Terminal styling and colors |
-| [mmcdole/gofeed](https://github.com/mmcdole/gofeed) | RSS and Atom feed parsing |
-
----
-
-## Architecture
-
-### Project Layout
+## Project Layout
 
 ```
 goread/
@@ -168,6 +13,8 @@ goread/
 ```
 
 ---
+
+## File Descriptions
 
 ### `main.go`
 
@@ -213,6 +60,14 @@ type storedData struct {
 }
 ```
 
+**File location** (resolved by `os.UserConfigDir()`):
+
+| OS | Path |
+|---|---|
+| Windows | `%APPDATA%\goread\data.json` |
+| macOS | `~/Library/Application Support/goread/data.json` |
+| Linux | `~/.config/goread/data.json` |
+
 **Functions:**
 
 | Function | Purpose |
@@ -227,7 +82,7 @@ type storedData struct {
 
 The largest file. Contains everything related to the TUI: state machine, event handling, rendering, and layout helpers. Follows the [Elm architecture](https://guide.elm-lang.org/architecture/) enforced by Bubble Tea — every interaction flows through `Update`, and `View` is a pure render of the current state.
 
-**App states:**
+#### App States
 
 ```
 stateFeedList     — list of all subscribed feeds
@@ -236,7 +91,7 @@ stateArticleView  — scrollable plain-text view of one article
 stateAddFeed      — text input prompt for a new feed URL
 ```
 
-**Model fields:**
+#### Model struct
 
 | Field | Type | Purpose |
 |---|---|---|
@@ -253,7 +108,9 @@ stateAddFeed      — text input prompt for a new feed URL
 | `statusMsg` | `string` | Informational status shown in the title bar |
 | `errMsg` | `string` | Error message shown in the title bar (takes priority over status) |
 
-**Custom message type:**
+#### Messages
+
+Bubble Tea is message-driven. The custom message type used is:
 
 ```go
 type feedFetchedMsg struct {
@@ -263,20 +120,20 @@ type feedFetchedMsg struct {
 }
 ```
 
-Returned by fetch goroutines when a feed download completes. `pendingFetches` is decremented on each receipt; when it reaches zero the status bar is updated with the last-refresh time.
+This is returned by fetch goroutines (via `tea.Cmd`) when a feed download completes, whether successfully or not. `pendingFetches` is decremented on each receipt; when it reaches zero the status bar is updated with the last-refresh time.
 
-**List delegates:**
+#### List Delegates
 
-Bubble Tea's `list.Model` delegates item rendering to a `list.ItemDelegate`. Two are defined:
+Bubble Tea's `list.Model` delegates item rendering to a `list.ItemDelegate` implementation. Two delegates are defined:
 
 | Delegate | Used by | Renders |
 |---|---|---|
 | `feedDelegate` | `feedList` | Feed title (bold+purple if selected) and unread/total count below |
 | `articleDelegate` | `articleList` | Article title with a `●` dot for unread items, and the publish date below |
 
-Each delegate renders 2 lines per item.
+Each delegate renders **2 lines per item** (`Height() = 2`).
 
-**Key functions:**
+#### Key functions
 
 | Function | Purpose |
 |---|---|
@@ -298,7 +155,7 @@ Each delegate renders 2 lines per item.
 
 ---
 
-### Data Flow
+## Data Flow
 
 ```
 startup
@@ -321,3 +178,14 @@ user opens an article
   └─ storedData.Read[guid]   persists immediately via saveData()
   └─ renderArticle()         formats content for viewport
 ```
+
+---
+
+## Dependencies
+
+| Package | Version | Role |
+|---|---|---|
+| `charmbracelet/bubbletea` | v1.3.10 | Event loop, message passing, alt-screen management |
+| `charmbracelet/bubbles` | v1.0.0 | `list`, `viewport`, `textinput` UI components |
+| `charmbracelet/lipgloss` | v1.1.0 | Terminal colour and style declarations |
+| `mmcdole/gofeed` | v1.3.0 | RSS and Atom feed parsing |
