@@ -68,6 +68,8 @@ type storedData struct {
 | macOS | `~/Library/Application Support/goread/data.json` |
 | Linux | `~/.config/goread/data.json` |
 
+When started with the `-local` flag, `localData` is set and `dataPath()` returns `data.json` relative to the current working directory instead.
+
 **Functions:**
 
 | Function | Purpose |
