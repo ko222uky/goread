@@ -12,7 +12,14 @@ type storedData struct {
 	Read     map[string]bool   `json:"read"`
 }
 
+// localData stores data.json in the current working directory instead of
+// the user config directory, so it can be committed alongside a project.
+var localData bool
+
 func dataPath() string {
+	if localData {
+		return "data.json"
+	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		dir = "."

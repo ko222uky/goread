@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -8,6 +9,9 @@ import (
 )
 
 func main() {
+	flag.BoolVar(&localData, "local", false, "store data.json in the current directory")
+	flag.Parse()
+
 	m, err := newModel()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)

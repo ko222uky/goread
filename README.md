@@ -21,7 +21,8 @@ Requires Go 1.21 or later.
 ## Usage
 
 ```bash
-./goread
+./goread          # data stored in your user config directory
+./goread -local   # data stored in ./data.json (commit-friendly)
 ```
 
 On first launch the feed list will be empty. Press `a` to add your first RSS or Atom feed URL.
@@ -92,6 +93,8 @@ Feed URLs, cached titles, and per-article read state are stored as JSON at:
 | Windows | `%APPDATA%\goread\data.json` |
 | macOS | `~/Library/Application Support/goread/data.json` |
 | Linux | `~/.config/goread/data.json` |
+
+Run with `-local` to use `./data.json` in the current directory instead, so your feed list and read state can be committed to a repository.
 
 ---
 
